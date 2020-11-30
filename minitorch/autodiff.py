@@ -50,7 +50,7 @@ class Variable:
 
     ## IGNORE
     def __hash__(self):
-        return hash(self.name)
+        return hash(self._name)
 
     def _add_deriv(self, val):
         assert self.history.is_leaf(), "Only leaf variables can have derivatives."
@@ -139,7 +139,7 @@ class FunctionBase:
 
     @staticmethod
     def variable(raw, history):
-        raise NotImplementedError()
+        pass
 
     @classmethod
     def apply(cls, *vals):
@@ -169,6 +169,7 @@ class FunctionBase:
         Implement the derivative chain-rule.
 
         Args:
+            cls (:class:`FunctionBase`): The Function
             ctx (:class:`Context`) : The context from running forward
             inputs (list of args) : The args that were passed to :func:`FunctionBase.apply` (e.g. :math:`x, y`)
             d_output (number) : The `d_output` value in the chain rule.
@@ -178,7 +179,11 @@ class FunctionBase:
             (see `is_constant` to remove unneeded variables)
 
         """
-        raise NotImplementedError('Need to include this file from past assignment.')
+        d_inputs = cls.backward(ctx, d_output)
+        d_inputs = wrap_tuple(d_inputs)
+        return [VariableWithDeriv(inp, d_input)
+                for inp, d_input in zip(inputs, d_inputs)
+                if not is_constant(inp)]
 
 
 def is_leaf(val):
@@ -194,12 +199,19 @@ def backpropagate(final_variable_with_deriv):
     Runs a breadth-first search on the computation graph in order to
     backpropagate derivatives to the leaves.
 
-    See :doc:`backpropagate` for details on the algorithm.
+    See :doc:`backpropagate` for details on the algorithm
 
     Args:
-        final_variable_with_deriv (:class:`VariableWithDeriv`): The final variable
-                and its derivative that we want to propagate backward to the leaves.
-
-    No return. Should write to its results to the derivative values of each leaf.
+       final_variable_with_deriv (:class:`VariableWithDeriv`): The final variable
+           and its derivative that we want to propagate backward to the leaves.
     """
-    raise NotImplementedError('Need to include this file from past assignment.')
+    q = [final_variable_with_deriv]
+    while q:
+        curr = q[0]
+        var = curr.variable
+        q = q[1:]
+        if is_leaf(var):  # Is leaf node
+            curr.variable._add_deriv(curr.deriv)
+        else:
+            for prev in var.history.backprop_step(curr.deriv):
+                q.append(prev)

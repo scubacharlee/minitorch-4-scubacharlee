@@ -41,7 +41,16 @@ def tensor_map(fn):
     """
 
     def _map(out, out_shape, out_strides, out_size, in_storage, in_shape, in_strides):
-        raise NotImplementedError('Need to include this file from past assignment.')
+        THREADS_X = 32
+        x = numba.cuda.blockIdx.x * THREADS_X + numba.cuda.threadIdx.x
+        if x >= 0 and x < out_size:
+            in_index, out_index = numba.cuda.local.array(MAX_DIMS, numba.int32), numba.cuda.local.array(MAX_DIMS, numba.int32)
+            count(x, out_shape, out_index)
+            broadcast_index(out_index, out_shape, in_shape, in_index)
+            local = numba.cuda.local.array(2, numba.int32)
+            local[0] = index_to_position(out_index, out_strides)
+            local[1] = index_to_position(in_index, in_strides)
+            out[local[0]] = fn(in_storage[local[1]])
 
     return cuda.jit()(_map)
 
@@ -99,7 +108,20 @@ def tensor_zip(fn):
         b_shape,
         b_strides,
     ):
-        raise NotImplementedError('Need to include this file from past assignment.')
+        THREADS_X = 32
+        x = numba.cuda.blockIdx.x * THREADS_X + numba.cuda.threadIdx.x
+        if x >= 0 and x < out_size:
+            out_index = numba.cuda.local.array(MAX_DIMS, numba.int32)
+            a_index = numba.cuda.local.array(MAX_DIMS, numba.int32)
+            b_index = numba.cuda.local.array(MAX_DIMS, numba.int32)
+            local = numba.cuda.local.array(3, numba.int32)
+            count(x, out_shape, out_index)
+            local[0] = index_to_position(out_index, out_strides)
+            broadcast_index(out_index, out_shape, a_shape, a_index)
+            local[1] = index_to_position(a_index, a_strides)
+            broadcast_index(out_index, out_shape, b_shape, b_index)
+            local[2] = index_to_position(b_index, b_strides)
+            out[local[0]] = fn(a_storage[local[1]], b_storage[local[2]])
 
     return cuda.jit()(_zip)
 
@@ -151,7 +173,21 @@ def tensor_reduce(fn):
         reduce_shape,
         reduce_size,
     ):
-        raise NotImplementedError('Need to include this file from past assignment.')
+        THREADS_X = 32
+        x = numba.cuda.blockIdx.x * THREADS_X + numba.cuda.threadIdx.x
+        if x >= 0 and x < out_size:
+            out_index = numba.cuda.local.array(MAX_DIMS, numba.int32)
+            a_index = numba.cuda.local.array(MAX_DIMS, numba.int32)
+            count(x, out_shape, out_index)
+            local = numba.cuda.local.array(2, numba.int32)
+            local[0] = index_to_position(out_index, out_strides)
+            for s in range(reduce_size):
+                count(s, reduce_shape, a_index)
+                for i in range(len(reduce_shape)):
+                    if reduce_shape[i] != 1:
+                        out_index[i] = a_index[i]
+                local[1] = index_to_position(out_index, a_strides)
+                out[local[0]] = fn(out[local[0]], a_storage[local[1]])
 
     return cuda.jit()(_reduce)
 
@@ -236,7 +272,29 @@ def tensor_matrix_multiply(
         None : Fills in `out`
     """
 
-    raise NotImplementedError('Need to include this file from past assignment.')
+    THREADS_X = 32
+    x = numba.cuda.blockIdx.x * THREADS_X + numba.cuda.threadIdx.x
+    if x >= 0 and x < out_size:
+        out_index = numba.cuda.local.array(MAX_DIMS, numba.int32)
+        count(x, out_shape, out_index)
+        out_dims = len(out_shape)
+        a_dims = len(a_shape)
+        b_dims = len(b_shape)
+        a_index = numba.cuda.local.array(MAX_DIMS, numba.int32)
+        broadcast_index(out_index, out_shape[:-2], a_shape[:-2], a_index)
+        b_index = numba.cuda.local.array(MAX_DIMS, numba.int32)
+        broadcast_index(out_index, out_shape[:-2], b_shape[:-2], b_index)
+        accum = 0
+        a_index[a_dims - 2] = out_index[out_dims - 2]
+        b_index[b_dims - 1] = out_index[out_dims - 1]
+        for j in range(a_shape[-1]):
+            a_index[a_dims - 1] = j
+            a = index_to_position(a_index, a_strides)
+            b_index[b_dims - 2] = j
+            b = index_to_position(b_index, b_strides)
+            accum += a_storage[a] * b_storage[b]
+        o = index_to_position(out_index, out_strides)
+        out[o] = accum
 
 
 def matrix_multiply(a, b):

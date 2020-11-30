@@ -1,11 +1,10 @@
-import numpy as np
 from .tensor_data import (
     count,
     index_to_position,
     broadcast_index,
     shape_broadcast,
-    MAX_DIMS,
 )
+from .operators import prod
 
 
 def tensor_map(fn):
@@ -27,10 +26,14 @@ def tensor_map(fn):
     Returns:
         None : Fills in `out`
     """
-
     def _map(out, out_shape, out_strides, in_storage, in_shape, in_strides):
-        raise NotImplementedError('Need to include this file from past assignment.')
-
+        for i in range(prod(out_shape)):
+            in_index, out_index = [1] * len(in_shape), [1] * len(out_shape)
+            count(i, out_shape, out_index)
+            out_position = index_to_position(out_index, out_strides)
+            broadcast_index(out_index, out_shape, in_shape, in_index)
+            in_position = index_to_position(in_index, in_strides)
+            out[out_position] = fn(in_storage[in_position])
     return _map
 
 
@@ -40,7 +43,7 @@ def map(fn):
 
       fn_map = map(fn)
       b = fn_map(a)
-
+s
 
     Args:
         fn: function from float-to-float to apply.
@@ -98,8 +101,16 @@ def tensor_zip(fn):
         b_shape,
         b_strides,
     ):
-        raise NotImplementedError('Need to include this file from past assignment.')
 
+        for i in range(prod(out_shape)):
+            a_index, b_index, out_index = [1] * len(a_shape), [1] * len(b_shape), [1] * len(out_shape)
+            count(i, out_shape, out_index)
+            out_position = index_to_position(out_index, out_strides)
+            broadcast_index(out_index, out_shape, a_shape, a_index)
+            a_position = index_to_position(a_index, a_strides)
+            broadcast_index(out_index, out_shape, b_shape, b_index)
+            b_position = index_to_position(b_index, b_strides)
+            out[out_position] = fn(a_storage[a_position], b_storage[b_position])
     return _zip
 
 
@@ -165,8 +176,16 @@ def tensor_reduce(fn):
         reduce_shape,
         reduce_size,
     ):
-        raise NotImplementedError('Need to include this file from past assignment.')
 
+        index, offset, a_index = [0] * len(out_shape), [0] * len(reduce_shape), [0] * len(a_shape)
+        for i in range(len(out)):
+            count(i, out_shape, index)
+            for j in range(reduce_size):
+                count(j, reduce_shape, offset)
+                a_index = [index[i] + offset[i] for i in range(len(index))]
+                a_position = index_to_position(a_index, a_strides)
+                out_position = index_to_position(index, out_strides)
+                out[out_position] = fn(out[out_position], a_storage[a_position])
     return _reduce
 
 
@@ -183,7 +202,6 @@ def reduce(fn, start=0.0):
         a (:class:`TensorData`): tensor to reduce over
         dims (list, optional): list of dims to reduce
         out (:class:`TensorData`, optional): tensor to reduce into
-
 
     Returns:
         :class:`Tensor` : new tensor

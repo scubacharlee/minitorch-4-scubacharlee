@@ -38,7 +38,14 @@ def tensor_map(fn):
     """
 
     def _map(out, out_shape, out_strides, in_storage, in_shape, in_strides):
-        raise NotImplementedError('Need to include this file from past assignment.')
+
+        for i in prange(len(out)):
+            in_index, out_index = np.zeros(MAX_DIMS, np.int32), np.zeros(MAX_DIMS, np.int32)
+            count(i, out_shape, out_index)
+            broadcast_index(out_index, out_shape, in_shape, in_index)
+            o = index_to_position(out_index, out_strides)
+            j = index_to_position(in_index, in_strides)
+            out[o] = fn(in_storage[j])
 
     return njit(parallel=True)(_map)
 
@@ -107,8 +114,17 @@ def tensor_zip(fn):
         b_shape,
         b_strides,
     ):
-        raise NotImplementedError('Need to include this file from past assignment.')
-
+        for i in prange(len(out)):
+            out_index = np.zeros(MAX_DIMS, np.int32)
+            a_index = np.zeros(MAX_DIMS, np.int32)
+            b_index = np.zeros(MAX_DIMS, np.int32)
+            count(i, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
+            broadcast_index(out_index, out_shape, a_shape, a_index)
+            j = index_to_position(a_index, a_strides)
+            broadcast_index(out_index, out_shape, b_shape, b_index)
+            k = index_to_position(b_index, b_strides)
+            out[o] = fn(a_storage[j], b_storage[k])
     return njit(parallel=True)(_zip)
 
 
@@ -168,8 +184,18 @@ def tensor_reduce(fn):
         reduce_shape,
         reduce_size,
     ):
-        raise NotImplementedError('Need to include this file from past assignment.')
-
+        for i in prange(len(out)):
+            out_index = np.zeros(MAX_DIMS, np.int32)
+            a_index = np.zeros(MAX_DIMS, np.int32)
+            count(i, out_shape, out_index)
+            o = index_to_position(out_index, out_strides)
+            for s in range(reduce_size):
+                count(s, reduce_shape, a_index)
+                for j in range(len(reduce_shape)):
+                    if reduce_shape[j] != 1:
+                        out_index[j] = a_index[j]
+                j = index_to_position(out_index, a_strides)
+                out[o] = fn(out[o], a_storage[j])
     return njit(parallel=True)(_reduce)
 
 
@@ -264,12 +290,34 @@ def tensor_matrix_multiply(
         None : Fills in `out`
     """
 
-    raise NotImplementedError('Need to include this file from past assignment.')
+    for o in prange(len(out)):
+        out_index = np.zeros(MAX_DIMS, np.int32)
+        count(o, out_shape, out_index)
+        out_dims = len(out_shape)
+        a_dims = len(a_shape)
+        b_dims = len(b_shape)
+
+        a_broad_idx = np.zeros(MAX_DIMS, np.int32)
+        broadcast_index(out_index, out_shape[:-2], a_shape[:-2], a_broad_idx)
+        b_broad_idx = np.zeros(MAX_DIMS, np.int32)
+        broadcast_index(out_index, out_shape[:-2], b_shape[:-2], b_broad_idx)
+        out_store = 0
+
+        a_broad_idx[a_dims - 2] = out_index[out_dims - 2]
+        b_broad_idx[b_dims - 1] = out_index[out_dims - 1]
+
+        for j in range(a_shape[-1]):
+            a_broad_idx[a_dims - 1] = j
+            a = index_to_position(a_broad_idx, a_strides)
+            b_broad_idx[b_dims - 2] = j
+            b = index_to_position(b_broad_idx, b_strides)
+            out_store += a_storage[a] * b_storage[b]
+        out[o] = out_store
 
 
 def matrix_multiply(a, b):
     """
-    Tensor matrix multiply
+    Tensor matrix matrix_multiply
 
     Should work for any tensor shapes that broadcast in the first n-2 dims and
     have ::
@@ -290,6 +338,7 @@ def matrix_multiply(a, b):
     ls.append(a.shape[-2])
     ls.append(b.shape[-1])
     assert a.shape[-1] == b.shape[-2]
+
     # END CODE CHANGE
     out = a.zeros(tuple(ls))
 

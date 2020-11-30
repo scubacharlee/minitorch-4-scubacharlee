@@ -74,8 +74,28 @@ def tensor_conv1d(
     s1 = input_strides
     s2 = weight_strides
 
-    # TODO: Implement for Task 4.1.
-    raise NotImplementedError('Need to implement for Task 4.1')
+    for o in range(len(out)):
+        out_index = np.zeros(MAX_DIMS, np.int32)
+        count(o, out_shape, out_index)
+        o_channel = out_index[1]
+
+        accum = 0
+        for i in range(in_channels):
+            for j in range(kw):
+                in_index, weight_index = np.zeros(MAX_DIMS, np.int32), np.zeros(MAX_DIMS, np.int32)
+                in_index[0] = batch
+                in_index[1] = i
+                in_index[2] = j
+                in_pos = index_to_position(in_index, input_strides)
+                in_val = input[in_pos]
+                weight_index[0] = o_channel 
+                weight_index[1] = i
+                weight_index[2] = j
+                weight_pos = index_to_position(weight_index, weight_strides)
+                weight_val = weight[weight_pos]
+                accum += in_val * weight_val
+
+        out[o] = accum
 
 
 class Conv1dFun(Function):

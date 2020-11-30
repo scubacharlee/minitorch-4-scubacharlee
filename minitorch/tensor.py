@@ -80,9 +80,6 @@ class Tensor(Variable):
             self, self.backend.Inv.apply(self._ensure_tensor(b))
         )
 
-    def __matmul__(self, b):
-        return self.backend.MatMul.apply(self, b)
-
     def __lt__(self, b):
         return self.backend.LT.apply(self, self._ensure_tensor(b))
 
@@ -94,6 +91,9 @@ class Tensor(Variable):
 
     def __neg__(self):
         return self.backend.Neg.apply(self)
+
+    def __matmul__(self, b):
+        return self.backend.MatMul.apply(self, b)
 
     def sigmoid(self):
         return self.backend.Sigmoid.apply(self)
@@ -156,7 +156,6 @@ class Tensor(Variable):
 
     def expand(self, other):
         "Method used to allow for backprop over reduce."
-
         if self.shape == other.shape:
             return other
         shape = TensorData.shape_broadcast(self.shape, other.shape)
@@ -164,10 +163,9 @@ class Tensor(Variable):
         self.backend._id_map(other, out=buf)
         if self.shape == shape:
             return buf
+
         buf2 = self.zeros(self.shape)
-        # START CODE CHANGE
         buf2 = self.backend._add_reduce(buf, out=buf2)
-        # END CODE CHANGE
         return buf2
 
     def zeros(self, shape=None):
