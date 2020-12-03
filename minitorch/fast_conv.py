@@ -74,10 +74,6 @@ def tensor_conv1d(
     s1 = input_strides
     s2 = weight_strides
 
-    # print("out shape: ", out_shape)
-    # print("input_shape: ", input_shape)
-    # print("weight_shape: ", weight_shape)
-
     for o in prange(len(out)):
         out_index = np.zeros(MAX_DIMS, np.int32)
         count(o, out_shape, out_index)
@@ -94,22 +90,16 @@ def tensor_conv1d(
             for kw_idx in iteration:
                 if (kw_idx + o_width) < width:
                     in_index, weight_index = np.zeros(MAX_DIMS, np.int32), np.zeros(MAX_DIMS, np.int32)
-                    in_index[0], in_index[1], in_index[2] = o_batch, in_chan_idx, kw_idx + o_width 
+                    in_index[0], in_index[1] = o_batch, in_chan_idx
+                    in_index[2] = kw_idx + o_width
                     in_pos = index_to_position(in_index, input_strides)
                     
                     weight_index[0], weight_index[1], weight_index[2] = o_channel, in_chan_idx, kw_idx
                     weight_pos = index_to_position(weight_index, weight_strides)
 
-                    # print("""out_position: {0} \n out_index: {1} \n in_index: {2} \n in_pos: {3} \n weight_index: {4} \n weight_pos: {5} \n""".format(
-                    #       o, out_index, in_index, in_pos, weight_index, weight_pos))
-                    # print("input: ", input)
-                    # print("output: ", out)
-
                     in_val = input[in_pos]
                     weight_val = weight[weight_pos]
                     accum += in_val * weight_val
-                    #print("accum: ", accum)
-            #print("\n")
 
         out[out_pos] = accum
 
@@ -231,8 +221,39 @@ def tensor_conv2d(
     s1 = input_strides
     s2 = weight_strides
 
-    # TODO: Implement for Task 4.2.
-    raise NotImplementedError('Need to implement for Task 4.2')
+    for o in prange(len(out)):
+        out_index = np.zeros(MAX_DIMS, np.int32)
+        count(o, out_shape, out_index)
+        out_pos = index_to_position(out_index, out_strides)
+        o_batch = out_index[0]
+        o_channel = out_index[1]
+        o_height = out_index[2]
+        o_width = out_index[3]
+
+        accum = 0
+        for in_chan_idx in range(in_channels):
+            height_iter = range(kh)
+            if reverse == True:
+                height_iter = range(kh - 1, -1, -1)
+            for kh_idx in height_iter:
+                width_iter = range(kw)
+                if reverse == True:
+                    width_iter = range(kw - 1, -1, -1)
+                for kw_idx in width_iter:
+                    if (kh_idx + o_height) < height and (kw_idx + o_width) < width:
+                        in_index, weight_index = np.zeros(MAX_DIMS, np.int32), np.zeros(MAX_DIMS, np.int32)
+
+                        in_index[0], in_index[1], in_index[2], in_index[3] = o_batch, in_chan_idx, kh_idx + o_height, kw_idx + o_width 
+                        in_pos = index_to_position(in_index, input_strides)
+                        in_val = input[in_pos]
+                        
+                        weight_index[0], weight_index[1], weight_index[2], weight_index[3] = o_channel, in_chan_idx, kh_idx, kw_idx
+                        weight_pos = index_to_position(weight_index, weight_strides)
+                        weight_val = weight[weight_pos]
+                        
+                        accum += in_val * weight_val
+
+        out[out_pos] = accum
 
 
 class Conv2dFun(Function):

@@ -376,5 +376,5 @@ def grad_check(f, *vals):
     for i, x in enumerate(vals):
         ind = x._tensor.sample()
         check = grad_central_difference(f, *vals, arg=i, ind=ind)
-        print("x.grad[ind]: ", x.grad[ind], "\n check: ", check)
+        #print("x.grad[ind]: ", x.grad[ind], "\n check: ", check)
         np.testing.assert_allclose(x.grad[ind], check, 1e-2, 1e-2)
