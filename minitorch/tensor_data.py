@@ -26,7 +26,7 @@ def index_to_position(index, strides):
     ret = 0
     for i, s in zip(index, strides):
         ret += i * s
-    return ret
+    return int(ret)
 
 
 def count(position, shape, out_index):
@@ -191,8 +191,8 @@ class TensorData:
         return tuple((random.randint(0, s - 1) for s in self.shape))
 
     def get(self, key):
-        print(type(key))
-        print(key)
+        # print(type(key))
+        # print(key)
         return self._storage[self.index(key)]
 
     def set(self, key, val):

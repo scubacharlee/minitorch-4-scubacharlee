@@ -1,8 +1,10 @@
+import numpy as np
 from .tensor_data import (
     count,
     index_to_position,
     broadcast_index,
     shape_broadcast,
+    MAX_DIMS
 )
 from .operators import prod
 
@@ -27,13 +29,13 @@ def tensor_map(fn):
         None : Fills in `out`
     """
     def _map(out, out_shape, out_strides, in_storage, in_shape, in_strides):
-        for i in range(prod(out_shape)):
-            in_index, out_index = [1] * len(in_shape), [1] * len(out_shape)
+        out_index, in_index = np.zeros(MAX_DIMS, np.int32), np.zeros(MAX_DIMS, np.int32)
+        for i in range(len(out)):
             count(i, out_shape, out_index)
-            out_position = index_to_position(out_index, out_strides)
             broadcast_index(out_index, out_shape, in_shape, in_index)
-            in_position = index_to_position(in_index, in_strides)
-            out[out_position] = fn(in_storage[in_position])
+            o = index_to_position(out_index, out_strides)
+            j = index_to_position(in_index, in_strides)
+            out[o] = fn(in_storage[j])
     return _map
 
 
@@ -102,7 +104,7 @@ def tensor_zip(fn):
         b_strides,
     ):
 
-        for i in range(prod(out_shape)):
+        for i in range(len(out)):
             a_index, b_index, out_index = [1] * len(a_shape), [1] * len(b_shape), [1] * len(out_shape)
             count(i, out_shape, out_index)
             out_position = index_to_position(out_index, out_strides)
@@ -180,7 +182,7 @@ def tensor_reduce(fn):
         index, offset, a_index = [0] * len(out_shape), [0] * len(reduce_shape), [0] * len(a_shape)
         for i in range(len(out)):
             count(i, out_shape, index)
-            for j in range(reduce_size):
+            for j in range(int(reduce_size)):
                 count(j, reduce_shape, offset)
                 a_index = [index[i] + offset[i] for i in range(len(index))]
                 a_position = index_to_position(a_index, a_strides)
