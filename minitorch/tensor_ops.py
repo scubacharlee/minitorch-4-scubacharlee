@@ -6,7 +6,6 @@ from .tensor_data import (
     shape_broadcast,
     MAX_DIMS
 )
-from .operators import prod
 
 
 def tensor_map(fn):

@@ -2,6 +2,11 @@ from mnist import MNIST
 import minitorch
 import visdom
 import numpy
+from minitorch import (
+    conv2d,
+    avgpool2d
+    dropout
+    )
 
 vis = visdom.Visdom()
 mndata = MNIST("data/")
@@ -34,8 +39,9 @@ class Linear(minitorch.Module):
         self.out_size = out_size
 
     def forward(self, x):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError('Need to implement for Task 4.5')
+        y = self.bias
+        temp = (x * self.weights.value).sum(1)
+        return y.value + temp
 
 
 class Conv2d(minitorch.Module):
@@ -45,8 +51,9 @@ class Conv2d(minitorch.Module):
         self.bias = RParam(out_channels, 1, 1)
 
     def forward(self, input):
-        # TODO: Implement for Task 4.5.
-        raise NotImplementedError('Need to implement for Task 4.5')
+        y = self.bias
+        temp = conv2d(input, self.weights)
+        return y.value + temp
 
 
 class Network(minitorch.Module):
@@ -71,12 +78,22 @@ class Network(minitorch.Module):
         self.mid = None
         self.out = None
 
-        # TODO: Implement for Task 4.4.
-        raise NotImplementedError('Need to implement for Task 4.4')
+        self.mid = Conv2d(C, 4, 3, 3)
+        self.out = Conv2d(4, 8, 3, 3)
+        self.layer3 = Linear(BATCH * 392, 64)
+        self.layer4 = Linear(64, C)
 
     def forward(self, x):
-        # TODO: Implement for Task 4.4.
-        raise NotImplementedError('Need to implement for Task 4.4')
+        x_reshape = x.view(BATCH, 1, H, W)
+        h = self.mid.forward(x_reshape).relu()
+        h_reshape = h.view(BATCH, 4, H, W)
+        h = self.out.forward(h_reshape).relu()
+        h_reshape = h.view(BATCH, 392)
+        h = dropout(self.layer3.forward(h_rehape).relu(), 0.25)
+        #h_reshape = h.view(BATCH, )
+        h = self.layer4.forward(h_reshape).relu()
+        h = logsoftmax(h, ???)
+        return h
 
 
 def make_mnist(start, stop):

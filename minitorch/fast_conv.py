@@ -85,21 +85,21 @@ def tensor_conv1d(
         accum = 0
         for in_chan_idx in range(in_channels):
             iteration = range(kw)
-            if reverse == True:
+            if reverse is True:
                 iteration = range(kw - 1, -1, -1)
             for kw_idx in iteration:
-                if (kw_idx + o_width) < width:
-                    in_index, weight_index = np.zeros(MAX_DIMS, np.int32), np.zeros(MAX_DIMS, np.int32)
-                    in_index[0], in_index[1] = o_batch, in_chan_idx
-                    in_index[2] = kw_idx + o_width
-                    in_pos = index_to_position(in_index, input_strides)
-                    
-                    weight_index[0], weight_index[1], weight_index[2] = o_channel, in_chan_idx, kw_idx
-                    weight_pos = index_to_position(weight_index, weight_strides)
+                in_index, weight_index = np.zeros(MAX_DIMS, np.int32), np.zeros(MAX_DIMS, np.int32)
 
-                    in_val = input[in_pos]
-                    weight_val = weight[weight_pos]
-                    accum += in_val * weight_val
+                in_index[0], in_index[1] = o_batch, in_chan_idx
+                in_index[2] = kw_idx + o_width if reverse is False else o_width - kw_idx
+                in_pos = index_to_position(in_index, s1)
+
+                weight_index[0], weight_index[1], weight_index[2] = o_channel, in_chan_idx, kw_idx
+                weight_pos = index_to_position(weight_index, s2)
+
+                in_val = input[in_pos]
+                weight_val = weight[weight_pos]
+                accum += in_val * weight_val
 
         out[out_pos] = accum
 
@@ -232,26 +232,32 @@ def tensor_conv2d(
 
         accum = 0
         for in_chan_idx in range(in_channels):
-            height_iter = range(kh)
-            if reverse == True:
-                height_iter = range(kh - 1, -1, -1)
-            for kh_idx in height_iter:
-                width_iter = range(kw)
-                if reverse == True:
-                    width_iter = range(kw - 1, -1, -1)
-                for kw_idx in width_iter:
-                    if (kh_idx + o_height) < height and (kw_idx + o_width) < width:
-                        in_index, weight_index = np.zeros(MAX_DIMS, np.int32), np.zeros(MAX_DIMS, np.int32)
+            height_iteration = range(kh)
+            if reverse is True:
+                height_iteration = range(kh - 1, -1, -1)
+            for kh_idx in height_iteration:
+                width_iteration = range(kw)
+                if reverse is True:
+                    width_iteration = range(kw - 1, -1, -1)
+                for kw_idx in width_iteration:
 
-                        in_index[0], in_index[1], in_index[2], in_index[3] = o_batch, in_chan_idx, kh_idx + o_height, kw_idx + o_width 
-                        in_pos = index_to_position(in_index, input_strides)
+                    in_index, weight_index = np.zeros(MAX_DIMS, np.int32), np.zeros(MAX_DIMS, np.int32)
+
+                    in_index[0], in_index[1] = o_batch, in_chan_idx
+                    in_index[2] = kh_idx + o_height if reverse is False else o_height - kh_idx
+                    in_index[3] = kw_idx + o_width if reverse is False else o_width - kw_idx
+                    in_pos = index_to_position(in_index, s1)
+
+                    weight_index[0], weight_index[1], weight_index[2], weight_index[3] = o_channel, in_chan_idx, kh_idx, kw_idx
+                    weight_pos = index_to_position(weight_index, s2)
+
+                    in_val = 0
+                    if (reverse is False and (kw_idx + o_width) > width) or (reverse is True and (o_width - kh_idx) < 0):
+                        in_val = 0
+                    else:
                         in_val = input[in_pos]
-                        
-                        weight_index[0], weight_index[1], weight_index[2], weight_index[3] = o_channel, in_chan_idx, kh_idx, kw_idx
-                        weight_pos = index_to_position(weight_index, weight_strides)
-                        weight_val = weight[weight_pos]
-                        
-                        accum += in_val * weight_val
+                    weight_val = weight[weight_pos]
+                    accum += in_val * weight_val
 
         out[out_pos] = accum
 

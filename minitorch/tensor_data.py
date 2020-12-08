@@ -191,8 +191,6 @@ class TensorData:
         return tuple((random.randint(0, s - 1) for s in self.shape))
 
     def get(self, key):
-        # print(type(key))
-        # print(key)
         return self._storage[self.index(key)]
 
     def set(self, key, val):
